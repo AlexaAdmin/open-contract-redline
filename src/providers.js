@@ -7,7 +7,7 @@ import { RESULT_SCHEMA, systemPrompt, userPrompt } from './prompt.js';
 
 export const PROVIDERS = {
   anthropic: { label: 'Anthropic (Claude)', env: 'ANTHROPIC_API_KEY', model: 'claude-opus-5-5' },
-  openai: { label: 'OpenAI', env: 'OPENAI_API_KEY', model: 'gpt-6-astra' },
+  openai: { label: 'OpenAI (GPT)', env: 'OPENAI_API_KEY', model: 'gpt-6-astra' },
   deepseek: { label: 'DeepSeek', env: 'DEEPSEEK_API_KEY', model: 'deepseek-v4-pro' },
   mistral: { label: 'Mistral', env: 'MISTRAL_API_KEY', model: 'mistral-large-latest' },
 };

@@ -1,7 +1,7 @@
 {
   "name": "open-contract-redline",
   "version": "1.0.0",
-  "description": "Free, open-source AI contract review that returns a real Word redline (tracked changes + comments). Bring your own Anthropic, OpenAI, DeepSeek or Mistral API key.",
+  "description": "Free, open-source AI contract review that returns a real Word redline (tracked changes + comments). Bring your own Claude, GPT, DeepSeek or Mistral API key.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {

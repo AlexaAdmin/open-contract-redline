@@ -6,7 +6,7 @@ Upload a contract. One AI model reads it, lists the issues by risk, and **shows 
 
 ![The redline in the browser](docs/redline-view.jpg)
 
-- Bring your own API key: **Anthropic (Claude), OpenAI, DeepSeek or Mistral**
+- Bring your own API key for **Claude, GPT, DeepSeek or Mistral**
 - One model per review, the one you choose. No hidden second model.
 - Runs on your own computer. Your contract goes straight to the AI provider you pick, and nowhere else.
 - Review the redline on screen: switch between **Redline**, **Clean** (all changes accepted) and **Original**, jump from change to change, or show changes only
@@ -53,7 +53,7 @@ Try it first on the fictional contract in `examples/sample-services-agreement.do
 | Provider | `--provider` | Key in `.env` | Default model |
 |---|---|---|---|
 | Anthropic (Claude) | `anthropic` | `ANTHROPIC_API_KEY` | `claude-opus-5-5` |
-| OpenAI | `openai` | `OPENAI_API_KEY` | `gpt-6-astra` |
+| OpenAI (GPT) | `openai` | `OPENAI_API_KEY` | `gpt-6-astra` |
 | DeepSeek | `deepseek` | `DEEPSEEK_API_KEY` | `deepseek-v4-pro` |
 | Mistral | `mistral` | `MISTRAL_API_KEY` | `mistral-large-latest` |
 
