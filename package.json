@@ -1,0 +1,35 @@
+{
+  "name": "open-contract-redline",
+  "version": "1.0.0",
+  "description": "Free, open-source AI contract review that returns a real Word redline (tracked changes + comments). Bring your own Anthropic, OpenAI, DeepSeek or Mistral API key.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "contract-redline": "bin/cli.js"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "review": "node bin/cli.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.9.0",
+    "@mistralai/mistralai": "^3.5.0",
+    "jszip": "^3.10.1",
+    "openai": "^7.57.0"
+  },
+  "keywords": [
+    "contract-review",
+    "redline",
+    "legal-ai",
+    "tracked-changes",
+    "docx",
+    "claude",
+    "openai",
+    "deepseek",
+    "mistral"
+  ]
+}

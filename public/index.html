@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Contract Redline</title>
+<style>
+  :root { --ink:#111827; --sub:#4b5563; --line:#e5e7eb; --brand:#6d28d9; --tint:#f5f3ff; --hi:#dc2626; --med:#d97706; --low:#059669; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--ink); background:#fafafa; }
+  main { max-width:860px; margin:0 auto; padding:32px 20px 60px; }
+  h1 { font-size:26px; margin:0 0 4px; } .lead { color:var(--sub); margin:0 0 24px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:16px; }
+  label { display:block; font-weight:600; font-size:13px; margin:12px 0 6px; }
+  input, select, textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; font:inherit; background:#fff; }
+  textarea { min-height:80px; resize:vertical; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  @media (max-width:640px) { .row { grid-template-columns:1fr; } }
+  button { margin-top:16px; padding:10px 18px; border-radius:8px; border:1px solid var(--brand); background:var(--tint); color:var(--brand); font:600 15px system-ui; cursor:pointer; }
+  button:disabled { opacity:.5; cursor:wait; }
+  .hint { color:var(--sub); font-size:13px; margin-top:4px; }
+  .err { color:var(--hi); margin-top:12px; white-space:pre-wrap; }
+  .risk { display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:700; border:1px solid; }
+  .risk.high { color:var(--hi); } .risk.medium { color:var(--med); } .risk.low { color:var(--low); }
+  .issue { border-top:1px solid var(--line); padding:12px 0; } .issue:first-of-type { border-top:0; }
+  .issue h3 { font-size:15px; margin:0 0 4px; } .clause { color:var(--sub); font-size:13px; }
+  a.dl { display:inline-block; margin:6px 10px 0 0; color:var(--brand); font-weight:600; }
+  footer { color:var(--sub); font-size:12px; margin-top:28px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Open Contract Redline</h1>
+  <p class="lead">Upload a contract. One AI model reviews it and returns a Word redline with tracked changes and comments.</p>
+
+  <form class="card" id="f">
+    <label for="file">Contract (.docx, .txt or .md)</label>
+    <input id="file" type="file" accept=".docx,.txt,.md" required>
+    <div class="row">
+      <div><label for="provider">AI provider</label><select id="provider"></select></div>
+      <div><label for="model">Model</label><input id="model" placeholder="default"></div>
+    </div>
+    <div id="keyBox"><label for="apiKey">API key</label><input id="apiKey" type="password" autocomplete="off" placeholder="Paste your key, or set it in .env">
+      <div class="hint">Used for this review only. It stays on your computer and goes only to the provider you chose.</div></div>
+    <label for="party">You act for</label><input id="party" placeholder="e.g. Customer, Supplier, Licensee">
+    <label for="playbook">Your positions (optional)</label><textarea id="playbook" placeholder="e.g. Liability cap no lower than 12 months' fees. No unlimited indemnities. Our governing law."></textarea>
+    <button id="go" type="submit">Review and redline</button>
+    <div class="err" id="err"></div>
+  </form>
+
+  <section class="card" id="out" hidden></section>
+  <footer>AI-generated first draft for a qualified lawyer to check. Not legal advice. Open source under the Apache License 2.0.</footer>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let providers = [];
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' })[c]);
+
+fetch('/api/providers').then((r) => r.json()).then((list) => {
+  providers = list;
+  $('provider').innerHTML = list.map((p) => `<option value="${p.id}">${esc(p.label)}${p.hasKey ? ' (key in .env)' : ''}</option>`).join('');
+  const withKey = list.find((p) => p.hasKey); if (withKey) $('provider').value = withKey.id;
+  sync();
+});
+const sync = () => { const p = providers.find((x) => x.id === $('provider').value); $('model').placeholder = p ? p.model : ''; $('keyBox').hidden = !!(p && p.hasKey); };
+$('provider').onchange = sync;
+
+const b64 = (file) => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = no; r.readAsDataURL(file); });
+const link = (data, name, type) => { const a = document.createElement('a'); a.className = 'dl'; a.download = name; a.textContent = 'Download ' + name;
+  a.href = URL.createObjectURL(new Blob([data], { type })); return a.outerHTML; };
+
+$('f').onsubmit = async (ev) => {
+  ev.preventDefault(); $('err').textContent = ''; $('out').hidden = true;
+  const file = $('file').files[0]; if (!file) return;
+  $('go').disabled = true; $('go').textContent = 'Reviewing... (a long contract can take a few minutes)';
+  try {
+    const res = await fetch('/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+      file: await b64(file), filename: file.name, provider: $('provider').value, model: $('model').value.trim(),
+      apiKey: $('apiKey').value.trim(), party: $('party').value.trim(), playbook: $('playbook').value.trim() }) });
+    const d = await res.json(); if (!res.ok) throw new Error(d.error || 'Review failed');
+    const base = file.name.replace(/\.[^.]+$/, '');
+    const bytes = Uint8Array.from(atob(d.redline), (c) => c.charCodeAt(0));
+    const r = d.result;
+    $('out').innerHTML = `<h2 style="margin:0 0 6px">Review <span class="risk ${esc(r.overall_risk)}">${esc(r.overall_risk.toUpperCase())} RISK</span></h2>
+      <div class="hint">${esc(r.provider)} / ${esc(r.model)} &middot; ${d.applied} tracked change(s)${d.skipped.length ? ` &middot; ${d.skipped.length} not placed (see the review file)` : ''}</div>
+      <div>${link(bytes, base + ' - redline.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}${link(d.report, base + ' - review.md', 'text/markdown')}</div>
+      <p>${esc(r.summary)}</p>
+      ${r.issues.map((i) => `<div class="issue"><h3>${esc(i.id)}. ${esc(i.title)} <span class="risk ${esc(i.risk)}">${esc(String(i.risk).toUpperCase())}</span></h3>
+        <div class="clause">${esc(i.clause)}</div><p>${esc(i.explanation)}</p><p><b>Recommendation:</b> ${esc(i.recommendation)}</p></div>`).join('')}`;
+    $('out').hidden = false; $('out').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) { $('err').textContent = e.message; }
+  finally { $('go').disabled = false; $('go').textContent = 'Review and redline'; }
+};
+</script>
+</body>
+</html>
