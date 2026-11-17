@@ -3,8 +3,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import JSZip from 'jszip';
-import { readDocx, redlineDocx } from '../src/docx.js';
-import { reviewContract } from '../src/review.js';
+import { readDocx, redlineDocx, previewDocx } from '../src/docx.js';
+import { redlinePage } from '../src/preview.js';
+import { reviewContract, demoReview } from '../src/review.js';
 
 const SAMPLE = fs.readFileSync(new URL('../examples/sample-services-agreement.docx', import.meta.url));
 
@@ -70,6 +71,37 @@ test('writes tracked changes that accept and reject cleanly', async () => {
   fs.writeFileSync(new URL('./out/sample - redline.docx', import.meta.url), buffer);
 });
 
+test('on-screen redline matches Word: clean = all accepted, original = all rejected', async () => {
+  const original = await readDocx(SAMPLE);
+  const { buffer, applied, skipped } = await redlineDocx(SAMPLE, EDITS, { author: 'Test', date: '2026-01-01T00:00:00Z' });
+  const v = await versions(buffer);
+  const pv = await previewDocx(buffer);
+  const view = (p, keep) => p.segs.filter((s) => keep.includes(s.t)).map((s) => s.text).join('');
+  assert.deepEqual(pv.paragraphs.map((p) => view(p, ['eq', 'ins'])), v.accepted, 'Clean view = every change accepted');
+  // the inserted paragraph does not exist in the original
+  assert.deepEqual(pv.paragraphs.filter((p) => !(p.segs.some((s) => s.t === 'ins') && !p.segs.some((s) => s.t === 'eq' || s.t === 'del'))).map((p) => view(p, ['eq', 'del'])), original, 'Original view = every change rejected');
+  const p3 = pv.paragraphs[3].segs;
+  assert.ok(p3.some((s) => s.t === 'del' && s.text === 'seven (7) days') && p3.some((s) => s.t === 'ins' && s.text === 'thirty (30) days'));
+  assert.equal(pv.paragraphs.filter((p) => p.changed).length, 7, '9 changes in 7 paragraphs (two paragraphs have two changes)');
+  assert.equal(pv.paragraphs.flatMap((p) => p.segs).filter((s) => s.t === 'cm').length, 9, 'one comment marker per change');
+  assert.ok(Object.values(pv.comments).some((c) => c.text === '30 days is market standard.' && c.author === 'Test'));
+
+  const html = redlinePage(pv, { filename: 'sample <x>.docx', result: { overall_risk: 'high', provider: 'test', model: 'm', summary: 'S', issues: [] }, applied: applied.length, skipped });
+  assert.match(html, /<del>seven \(7\) days<\/del><ins>thirty \(30\) days<\/ins>/);
+  assert.match(html, /sample &lt;x&gt;\.docx/, 'file name is escaped');
+  assert.match(html, /3 suggested change\(s\) could not be placed/);
+  fs.mkdirSync(new URL('./out/', import.meta.url), { recursive: true });
+  fs.writeFileSync(new URL('./out/sample - redline.html', import.meta.url), html);
+});
+
+test('comment text cannot inject HTML into the redline page', async () => {
+  const evil = [{ type: 'replace', paragraph: 3, find: 'seven (7) days', replace: '<b>30</b> days', comment: '<script>alert(1)</script>' }];
+  const pv = await previewDocx((await redlineDocx(SAMPLE, evil)).buffer);
+  const html = redlinePage(pv, {});
+  assert.doesNotMatch(html, /<script>alert/);
+  assert.match(html, /&lt;b&gt;30&lt;\/b&gt; days/);
+});
+
 test('a second pass adds comments to the existing comments part', async () => {
   const first = (await redlineDocx(SAMPLE, EDITS.slice(0, 1))).buffer;
   const second = (await redlineDocx(first, [EDITS[4]])).buffer;
@@ -86,7 +118,17 @@ test('full review flow with each provider name (model replaced by a fixed answer
     assert.equal(r.result.provider, provider);
     assert.equal(r.applied.length, 2);
     assert.match(r.report, /Overall risk:\*\* HIGH/);
+    assert.match(r.html, /<ins>thirty \(30\) days<\/ins>/);
   }
+});
+
+test('the no-key demo places every prepared change', async () => {
+  const r = await demoReview();
+  assert.equal(r.result.provider, 'demo');
+  assert.equal(r.skipped.length, 0, JSON.stringify(r.skipped));
+  assert.equal(r.applied.length, 9);
+  assert.match(r.html, /<ins>thirty \(30\) days<\/ins>/);
+  fs.writeFileSync(new URL('./out/demo - redline.html', import.meta.url), r.html);
 });
 
 test('missing key gives a clear message', async () => {

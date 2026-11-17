@@ -6,7 +6,8 @@ Open Contract Redline reviews a contract with ONE AI model and writes the result
 - `src/prompt.js`: review instructions and the JSON schema the model must return. Change review behaviour here.
 - `src/providers.js`: one function per provider (Anthropic, OpenAI, DeepSeek, Mistral). Each makes exactly one model call per review.
 - `src/docx.js`: reads paragraphs from `word/document.xml` and writes tracked changes (`w:del`/`w:ins`) plus comments (`word/comments.xml`). Untouched paragraphs must stay byte-for-byte identical.
-- `src/review.js`: ties it together and builds the markdown report.
+- `src/preview.js`: the on-screen redline (one self-contained HTML page), built from the finished .docx via `previewDocx` in `src/docx.js`, so it always matches Word. Escape every piece of text that goes into it.
+- `src/review.js`: ties it together, builds the markdown report, and runs the no-key demo (`examples/demo-review.json`).
 - `bin/cli.js`: command line. `server.js` + `public/index.html`: local web page on 127.0.0.1.
 - `test/redline.test.js`: tests with a fake model answer (no API key needed).
 

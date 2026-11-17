@@ -3,5 +3,6 @@ node_modules/
 test/out/
 *- redline.docx
 *- review.md
+*- redline.html
 !examples/*
 .DS_Store

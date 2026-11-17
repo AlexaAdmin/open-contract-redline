@@ -2,11 +2,15 @@
 
 **Free, open-source AI contract review that gives you a real Word redline.**
 
-Upload a contract. One AI model reads it, lists the issues by risk, and returns your `.docx` with **tracked changes and margin comments**, ready to open in Microsoft Word and send back to the other side.
+Upload a contract. One AI model reads it, lists the issues by risk, and **shows you the redline right in your browser**: deletions struck through, insertions underlined, and a comment explaining every change. When you are happy, download your `.docx` with **real Word tracked changes and margin comments**, ready to send back to the other side.
+
+![The redline in the browser](docs/redline-view.jpg)
 
 - Bring your own API key: **Anthropic (Claude), OpenAI, DeepSeek or Mistral**
 - One model per review, the one you choose. No hidden second model.
 - Runs on your own computer. Your contract goes straight to the AI provider you pick, and nowhere else.
+- Review the redline on screen: switch between **Redline**, **Clean** (all changes accepted) and **Original**, jump from change to change, or show changes only
+- No API key yet? Press **Try the demo** to see a full review of the sample contract
 - Works as a local web page or from the command line
 - Plain JavaScript, small codebase: built to be changed with **Claude Code** or **Codex**
 
@@ -26,17 +30,20 @@ cp .env.example .env      # then paste your API key into .env
 npm start                 # open http://localhost:8787
 ```
 
+On the page, press **Try the demo (no API key)** to see a finished review of the sample contract straight away.
+
 Or from the command line:
 
 ```bash
 node bin/cli.js "My Contract.docx" --provider anthropic --party "Customer"
 ```
 
-You get two files next to the contract:
+You get three files next to the contract:
 
 | File | What it is |
 |---|---|
 | `My Contract - redline.docx` | Your contract with tracked changes and a comment explaining each change |
+| `My Contract - redline.html` | The same redline as a web page: open it in any browser, no Word needed |
 | `My Contract - review.md` | Summary, overall risk, and every issue with a recommendation |
 
 Try it first on the fictional contract in `examples/sample-services-agreement.docx`.
@@ -68,7 +75,8 @@ The web page has the same options.
 1. `src/docx.js` reads the Word file into numbered paragraphs (including table cells).
 2. `src/providers.js` sends them, with the instructions in `src/prompt.js`, to **one** model and asks for JSON: summary, issues and precise edits.
 3. `src/docx.js` writes each edit back as a Word tracked change (deletion + insertion) with a comment. Paragraphs the model did not touch are left exactly as they were, formatting included.
-4. If an edit cannot be placed safely (for example, inside a hyperlink or a field), it is not forced into the document. It is listed in the review file so you can apply it by hand.
+4. `src/preview.js` reads the finished `.docx` back and draws it as a web page, so what you see on screen is exactly what Word will show.
+5. If an edit cannot be placed safely (for example, inside a hyperlink or a field), it is not forced into the document. It is listed in the review file so you can apply it by hand.
 
 Supported files: `.docx`, `.txt`, `.md`. For a PDF, save it as Word first.
 

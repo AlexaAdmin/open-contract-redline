@@ -34,12 +34,13 @@ try {
   const dir = outDir || path.dirname(file);
   const base = path.basename(file).replace(/\.[^.]+$/, '');
   fs.mkdirSync(dir, { recursive: true });
-  const docxOut = path.join(dir, `${base} - redline.docx`), mdOut = path.join(dir, `${base} - review.md`);
+  const docxOut = path.join(dir, `${base} - redline.docx`), mdOut = path.join(dir, `${base} - review.md`), htmlOut = path.join(dir, `${base} - redline.html`);
   fs.writeFileSync(docxOut, r.redline);
   fs.writeFileSync(mdOut, r.report);
+  fs.writeFileSync(htmlOut, r.html);
   console.log(`Done with ${r.result.provider} / ${r.result.model}: ${r.result.issues.length} issues, ${r.applied.length} tracked changes.`);
   if (r.skipped.length) console.log(`${r.skipped.length} suggested change(s) could not be placed; see the review file.`);
-  console.log(`Redline: ${docxOut}\nReview:  ${mdOut}`);
+  console.log(`Redline (Word):    ${docxOut}\nRedline (browser): ${htmlOut}\nReview:            ${mdOut}`);
 } catch (e) {
   console.error('Error:', e.message);
   process.exit(1);

@@ -5,10 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Open Contract Redline</title>
 <style>
-  :root { --ink:#111827; --sub:#4b5563; --line:#e5e7eb; --brand:#6d28d9; --tint:#f5f3ff; --hi:#dc2626; --med:#d97706; --low:#059669; }
+  :root { --ink:#111827; --sub:#4b5563; --line:#e5e7eb; --brand:#0f766e; --tint:#f0fdfa; --hi:#dc2626; --med:#d97706; --low:#059669; }
   * { box-sizing:border-box; }
   body { margin:0; font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--ink); background:#fafafa; }
-  main { max-width:860px; margin:0 auto; padding:32px 20px 60px; }
+  main { max-width:1180px; margin:0 auto; padding:32px 20px 60px; }
+  #f, .lead, h1 { max-width:860px; }
   h1 { font-size:26px; margin:0 0 4px; } .lead { color:var(--sub); margin:0 0 24px; }
   .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:16px; }
   label { display:block; font-weight:600; font-size:13px; margin:12px 0 6px; }
@@ -26,16 +27,20 @@
   .issue h3 { font-size:15px; margin:0 0 4px; } .clause { color:var(--sub); font-size:13px; }
   a.dl { display:inline-block; margin:6px 10px 0 0; color:var(--brand); font-weight:600; }
   footer { color:var(--sub); font-size:12px; margin-top:28px; }
+  .tabs { display:flex; gap:6px; margin:14px 0 10px; border-bottom:1px solid var(--line); }
+  .tabs button { margin:0; border:0; border-bottom:2px solid transparent; border-radius:0; background:none; color:var(--sub); padding:8px 12px; }
+  .tabs button.on { color:var(--brand); border-bottom-color:var(--brand); }
+  #rl { width:100%; height:78vh; min-height:520px; border:1px solid var(--line); border-radius:10px; background:#fff; }
 </style>
 </head>
 <body>
 <main>
   <h1>Open Contract Redline</h1>
-  <p class="lead">Upload a contract. One AI model reviews it and returns a Word redline with tracked changes and comments.</p>
+  <p class="lead">Upload a contract. One AI model reviews it and shows you the redline right here, with a comment on every change. Download it as a Word file with real tracked changes when you are ready.</p>
 
   <form class="card" id="f">
     <label for="file">Contract (.docx, .txt or .md)</label>
-    <input id="file" type="file" accept=".docx,.txt,.md" required>
+    <input id="file" type="file" accept=".docx,.txt,.md">
     <div class="row">
       <div><label for="provider">AI provider</label><select id="provider"></select></div>
       <div><label for="model">Model</label><input id="model" placeholder="default"></div>
@@ -45,6 +50,7 @@
     <label for="party">You act for</label><input id="party" placeholder="e.g. Customer, Supplier, Licensee">
     <label for="playbook">Your positions (optional)</label><textarea id="playbook" placeholder="e.g. Liability cap no lower than 12 months' fees. No unlimited indemnities. Our governing law."></textarea>
     <button id="go" type="submit">Review and redline</button>
+    <button id="demo" type="button" style="margin-left:8px;border-color:var(--line);background:#fff;color:var(--sub)">Try the demo (no API key)</button>
     <div class="err" id="err"></div>
   </form>
 
@@ -69,25 +75,43 @@ const b64 = (file) => new Promise((ok, no) => { const r = new FileReader(); r.on
 const link = (data, name, type) => { const a = document.createElement('a'); a.className = 'dl'; a.download = name; a.textContent = 'Download ' + name;
   a.href = URL.createObjectURL(new Blob([data], { type })); return a.outerHTML; };
 
+function show(d, name) {
+  const base = name.replace(/\.[^.]+$/, '');
+    const bytes = Uint8Array.from(atob(d.redline), (c) => c.charCodeAt(0));
+    const r = d.result;
+    const tab = (id, label, on) => `<button type="button" data-t="${id}" class="${on ? 'on' : ''}">${label}</button>`;
+    $('out').innerHTML = `<h2 style="margin:0 0 6px">Review <span class="risk ${esc(r.overall_risk)}">${esc(r.overall_risk.toUpperCase())} RISK</span></h2>
+      <div class="hint">${esc(r.provider)} / ${esc(r.model)} &middot; ${d.applied} tracked change(s)${d.skipped.length ? ` &middot; ${d.skipped.length} not placed (listed in the redline and the review file)` : ''}</div>
+      <div>${link(bytes, base + ' - redline.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}${link(d.html, base + ' - redline.html', 'text/html')}${link(d.report, base + ' - review.md', 'text/markdown')}</div>
+      <div class="tabs">${tab('rl', 'Redline', true)}${tab('iss', 'Summary and issues (' + r.issues.length + ')')}</div>
+      <iframe id="rl" title="Redline"></iframe>
+      <div id="iss" hidden><p>${esc(r.summary)}</p>
+      ${r.issues.map((i) => `<div class="issue"><h3>${esc(i.id)}. ${esc(i.title)} <span class="risk ${esc(i.risk)}">${esc(String(i.risk).toUpperCase())}</span></h3>
+        <div class="clause">${esc(i.clause)}</div><p>${esc(i.explanation)}</p><p><b>Recommendation:</b> ${esc(i.recommendation)}</p></div>`).join('')}</div>`;
+    $('rl').srcdoc = d.html;
+    $('out').querySelectorAll('.tabs button').forEach((b) => b.onclick = () => {
+      $('out').querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+      $('rl').hidden = b.dataset.t !== 'rl'; $('iss').hidden = b.dataset.t !== 'iss'; });
+  $('out').hidden = false; $('out').scrollIntoView({ behavior: 'smooth' });
+}
+
+$('demo').onclick = async () => {
+  $('err').textContent = ''; $('demo').disabled = true;
+  try { const res = await fetch('/api/demo', { method: 'POST' }); const d = await res.json(); if (!res.ok) throw new Error(d.error || 'Demo failed'); show(d, d.filename); }
+  catch (e) { $('err').textContent = e.message; } finally { $('demo').disabled = false; }
+};
+
 $('f').onsubmit = async (ev) => {
   ev.preventDefault(); $('err').textContent = ''; $('out').hidden = true;
-  const file = $('file').files[0]; if (!file) return;
+  const file = $('file').files[0]; if (!file) { $('err').textContent = 'Choose a contract file first, or try the demo.'; return; }
   $('go').disabled = true; $('go').textContent = 'Reviewing... (a long contract can take a few minutes)';
   try {
     const res = await fetch('/api/review', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
       file: await b64(file), filename: file.name, provider: $('provider').value, model: $('model').value.trim(),
       apiKey: $('apiKey').value.trim(), party: $('party').value.trim(), playbook: $('playbook').value.trim() }) });
     const d = await res.json(); if (!res.ok) throw new Error(d.error || 'Review failed');
-    const base = file.name.replace(/\.[^.]+$/, '');
-    const bytes = Uint8Array.from(atob(d.redline), (c) => c.charCodeAt(0));
-    const r = d.result;
-    $('out').innerHTML = `<h2 style="margin:0 0 6px">Review <span class="risk ${esc(r.overall_risk)}">${esc(r.overall_risk.toUpperCase())} RISK</span></h2>
-      <div class="hint">${esc(r.provider)} / ${esc(r.model)} &middot; ${d.applied} tracked change(s)${d.skipped.length ? ` &middot; ${d.skipped.length} not placed (see the review file)` : ''}</div>
-      <div>${link(bytes, base + ' - redline.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')}${link(d.report, base + ' - review.md', 'text/markdown')}</div>
-      <p>${esc(r.summary)}</p>
-      ${r.issues.map((i) => `<div class="issue"><h3>${esc(i.id)}. ${esc(i.title)} <span class="risk ${esc(i.risk)}">${esc(String(i.risk).toUpperCase())}</span></h3>
-        <div class="clause">${esc(i.clause)}</div><p>${esc(i.explanation)}</p><p><b>Recommendation:</b> ${esc(i.recommendation)}</p></div>`).join('')}`;
-    $('out').hidden = false; $('out').scrollIntoView({ behavior: 'smooth' });
+    show(d, file.name);
+
   } catch (e) { $('err').textContent = e.message; }
   finally { $('go').disabled = false; $('go').textContent = 'Review and redline'; }
 };

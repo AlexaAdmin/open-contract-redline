@@ -278,6 +278,56 @@ export async function redlineDocx(buf, edits, { author = 'AI Review', date = new
   return { buffer, applied, skipped };
 }
 
+/**
+ * Read a (redlined) .docx back for on-screen review, exactly as Word shows it.
+ * Returns { paragraphs: [{ segs: [{ t: 'eq'|'del'|'ins'|'cm', text?, id? }], changed }], comments: { id: { author, text } } }.
+ */
+export async function previewDocx(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const xml = await zip.file('word/document.xml').async('string');
+  const cx = zip.file('word/comments.xml') ? await zip.file('word/comments.xml').async('string') : '';
+  const comments = {};
+  cx.replace(/<w:comment\b([^>]*)>([\s\S]*?)<\/w:comment>/g, (m, a, body) => {
+    const id = /w:id="(\d+)"/.exec(a)?.[1];
+    if (id !== undefined) comments[id] = { author: decode(/w:author="([^"]*)"/.exec(a)?.[1] || ''), text: body.split(/<\/w:p>/).map(textOf).filter((t) => t.trim()).join('\n') };
+    return m;
+  });
+  return { paragraphs: findParagraphs(xml).map((p) => segments(p.raw)), comments };
+}
+
+function segments(pRaw) {
+  const segs = [];
+  let del = 0, ins = 0;
+  const add = (t, text) => {
+    if (!text) return;
+    const last = segs[segs.length - 1];
+    if (last && last.t === t) last.text += text; else segs.push({ t, text });
+  };
+  const kind = () => (del ? 'del' : ins ? 'ins' : 'eq');
+  const re = /<(\/?)(w:del|w:ins|w:t|w:delText|w:tab|w:br|w:cr|w:commentReference|w:pPr|w:rPr)(?=[\s>/])([^>]*?)(\/?)>/g;
+  let m;
+  while ((m = re.exec(pRaw))) {
+    const [all, close, tag, attrs, self] = m;
+    if (tag === 'w:pPr' || tag === 'w:rPr') {   // formatting only (a self-closing <w:ins/> in here marks a paragraph mark)
+      if (!close && !self) { const end = pRaw.indexOf(`</${tag}>`, re.lastIndex); if (end >= 0) re.lastIndex = end + tag.length + 3; }
+      continue;
+    }
+    if (tag === 'w:del' && !self) { del += close ? -1 : 1; continue; }
+    if (tag === 'w:ins' && !self) { ins += close ? -1 : 1; continue; }
+    if ((tag === 'w:t' || tag === 'w:delText') && !close && !self) {
+      const end = pRaw.indexOf(`</${tag}>`, re.lastIndex);
+      add(kind(), decode(pRaw.slice(re.lastIndex, end)));
+      re.lastIndex = end + tag.length + 3;
+      continue;
+    }
+    if (tag === 'w:tab' && !close) add(kind(), '\t');
+    else if ((tag === 'w:br' || tag === 'w:cr') && !close) add(kind(), '\n');
+    else if (tag === 'w:commentReference') { const id = /w:id="(\d+)"/.exec(attrs)?.[1]; if (id !== undefined) segs.push({ t: 'cm', id }); }
+    void all;
+  }
+  return { segs, changed: segs.some((s) => s.t !== 'eq') };
+}
+
 /** Turn plain text into a minimal .docx so .txt / .md contracts can be redlined too. */
 export async function textToDocx(text) {
   const zip = new JSZip();

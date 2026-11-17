@@ -1,0 +1,24 @@
+{
+  "_note": "A prepared review of examples/sample-services-agreement.docx (fictional companies). Used by the 'Try the demo' button so you can see the redline without an API key. No AI is called.",
+  "summary": "This is a supplier-friendly services agreement. Acting for the Customer, the main risks are a very short payment period with a high late-payment rate, a liability cap that protects only the Supplier, an uncapped Customer indemnity, and a right for the Supplier to use Customer data for its own products. The governing-law clause lets the Supplier change the law at will.",
+  "overall_risk": "high",
+  "issues": [
+    { "id": "I1", "title": "Payment terms and late interest", "risk": "medium", "clause": "2 Fees", "explanation": "Seven days to pay is unusually short, and 5% interest per month is well above usual commercial rates.", "recommendation": "Move to 30 days and a moderate late-payment rate." },
+    { "id": "I2", "title": "Long initial term", "risk": "medium", "clause": "3 Term", "explanation": "A 36-month first term locks the Customer in before the service has proved itself.", "recommendation": "Start with 12 months." },
+    { "id": "I3", "title": "One-sided liability cap", "risk": "high", "clause": "4 Liability", "explanation": "The Supplier's liability is capped at one month of fees, while the Customer's liability is unlimited.", "recommendation": "Make the cap mutual and set it at twelve months of fees." },
+    { "id": "I4", "title": "Uncapped Customer indemnity", "risk": "high", "clause": "5 Indemnity", "explanation": "The Customer indemnifies all losses of any kind, even those caused by the Supplier.", "recommendation": "Limit the indemnity to losses caused by the Customer's breach, subject to the cap." },
+    { "id": "I5", "title": "Use of Customer data", "risk": "high", "clause": "6 Data", "explanation": "The Supplier may use Customer data for any purpose, including training its own products.", "recommendation": "Limit use to providing the Services." },
+    { "id": "I6", "title": "Governing law chosen by one party", "risk": "medium", "clause": "8 Governing law", "explanation": "The Supplier can choose and change the governing law from time to time, so the Customer cannot know which law applies.", "recommendation": "Fix one agreed governing law now." }
+  ],
+  "edits": [
+    { "type": "replace", "paragraph": 3, "find": "seven (7) days", "replace": "thirty (30) days", "comment": "Seven days is unusually short. Thirty days is a common commercial standard.", "issue_id": "I1" },
+    { "type": "replace", "paragraph": 3, "find": "5% per month", "replace": "1% per month", "comment": "5% a month is far above usual late-payment rates.", "issue_id": "I1" },
+    { "type": "replace", "paragraph": 4, "find": "continues for 36 months", "replace": "continues for 12 months", "comment": "A shorter first term lets the Customer test the service before a long commitment.", "issue_id": "I2" },
+    { "type": "replace", "paragraph": 5, "find": "the fees paid in the one (1) month", "replace": "the fees paid in the twelve (12) months", "comment": "One month of fees gives the Customer almost no remedy.", "issue_id": "I3" },
+    { "type": "replace", "paragraph": 5, "find": "The Customer’s liability is unlimited.", "replace": "The same cap applies to the Customer.", "comment": "The cap should protect both parties equally.", "issue_id": "I3" },
+    { "type": "replace", "paragraph": 6, "find": "all losses of any kind arising in connection with this Agreement", "replace": "losses caused by the Customer’s breach of this Agreement, subject to clause 4", "comment": "The Customer should not cover losses the Supplier causes.", "issue_id": "I4" },
+    { "type": "delete", "paragraph": 7, "find": " for any purpose, including training its own products", "replace": "", "comment": "Customer data must not be used to train the Supplier's products.", "issue_id": "I5" },
+    { "type": "insert_after", "paragraph": 7, "find": "", "replace": "The Supplier shall use Customer data only to provide the Services and shall delete it when this Agreement ends.", "comment": "States the permitted use clearly.", "issue_id": "I5" },
+    { "type": "replace", "paragraph": 9, "find": "the laws chosen by the Supplier from time to time", "replace": "the laws agreed by the parties in Schedule 2", "comment": "One fixed governing law, agreed by both parties.", "issue_id": "I6" }
+  ]
+}

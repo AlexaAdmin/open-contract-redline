@@ -1,5 +1,15 @@
-// review(file) -> { report (markdown), result (JSON), redline (.docx Buffer) }
-import { readDocx, redlineDocx, textToDocx } from './docx.js';
+// review(file) -> { report (markdown), result (JSON), redline (.docx Buffer), html (redline as a web page) }
+import { readDocx, redlineDocx, textToDocx, previewDocx } from './docx.js';
+import { redlinePage } from './preview.js';
+import fs from 'node:fs';
+
+const SAMPLE_URL = new URL('../examples/sample-services-agreement.docx', import.meta.url);
+const DEMO_URL = new URL('../examples/demo-review.json', import.meta.url);
+
+/** The demo: the sample contract with a prepared answer. No API key, no AI call. */
+export function demoReview() {
+  return reviewContract({ buffer: fs.readFileSync(SAMPLE_URL), filename: 'sample-services-agreement.docx', demo: true });
+}
 import { reviewWithModel } from './providers.js';
 
 export async function reviewContract({ buffer, filename = 'contract.docx', ...opts }) {
@@ -11,9 +21,14 @@ export async function reviewContract({ buffer, filename = 'contract.docx', ...op
   const paragraphs = await readDocx(docx);
   if (!paragraphs.join('').trim()) throw new Error('No text found in this document. Is it a scanned image?');
 
-  const result = await reviewWithModel(paragraphs, opts);
+  const result = opts.demo
+    ? { ...JSON.parse(fs.readFileSync(DEMO_URL, 'utf8')), provider: 'demo', model: 'prepared sample answer (no AI call)' }
+    : await reviewWithModel(paragraphs, opts);
+  delete result._note;
   const { buffer: redline, applied, skipped } = await redlineDocx(docx, result.edits, { author: opts.author || 'AI Review' });
-  return { result, redline, applied, skipped, report: toMarkdown(result, applied, skipped, filename) };
+  const preview = await previewDocx(redline);   // read back from the finished file, so the screen matches Word
+  const html = redlinePage(preview, { filename, result, applied: applied.length, skipped });
+  return { result, redline, applied, skipped, preview, html, report: toMarkdown(result, applied, skipped, filename) };
 }
 
 export function toMarkdown(r, applied, skipped, filename) {
