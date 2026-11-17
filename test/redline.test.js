@@ -6,6 +6,11 @@ import JSZip from 'jszip';
 import { readDocx, redlineDocx, previewDocx } from '../src/docx.js';
 import { redlinePage } from '../src/preview.js';
 import { reviewContract, demoReview } from '../src/review.js';
+import { agentBrief, readAgentReview } from '../src/agent.js';
+import { execFileSync } from 'node:child_process';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const SAMPLE = fs.readFileSync(new URL('../examples/sample-services-agreement.docx', import.meta.url));
 
@@ -129,6 +134,36 @@ test('the no-key demo places every prepared change', async () => {
   assert.equal(r.applied.length, 9);
   assert.match(r.html, /<ins>thirty \(30\) days<\/ins>/);
   fs.writeFileSync(new URL('./out/demo - redline.html', import.meta.url), r.html);
+});
+
+test('agent mode (no API key): brief, answer and redline through the command line', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ocr-agent-'));
+  const contract = path.join(dir, 'My Contract.docx');
+  fs.copyFileSync(new URL('../examples/sample-services-agreement.docx', import.meta.url), contract);
+  const cli = fileURLToPath(new URL('../bin/cli.js', import.meta.url));
+  const run = (...a) => execFileSync(process.execPath, [cli, ...a], { encoding: 'utf8' });
+
+  run(contract, '--prepare', '--party', 'Customer');
+  const brief = fs.readFileSync(path.join(dir, 'My Contract - agent-brief.md'), 'utf8');
+  assert.match(brief, /You act for: Customer\./);
+  assert.match(brief, /\[P3\] 2 Fees\. The Customer shall pay all invoices within seven \(7\) days/);
+  assert.match(brief, /"overall_risk"/, 'schema included');
+  assert.match(brief, /--from ".*My Contract - review\.json" --open/, 'next command included');
+
+  const answer = JSON.parse(fs.readFileSync(new URL('../examples/demo-review.json', import.meta.url), 'utf8'));
+  fs.writeFileSync(path.join(dir, 'My Contract - review.json'), '```json\n' + JSON.stringify(answer) + '\n```');   // fences are tolerated
+  const out = run(contract, '--from', path.join(dir, 'My Contract - review.json'));
+  assert.match(out, /agent mode/);
+  assert.match(out, /9 tracked changes/);
+  for (const f of ['redline.docx', 'redline.html', 'review.md']) assert.ok(fs.existsSync(path.join(dir, `My Contract - ${f}`)), f);
+  assert.deepEqual(fs.readFileSync(contract), SAMPLE, 'the original contract is not changed');
+});
+
+test('agent answers are checked', () => {
+  assert.throws(() => readAgentReview('{}'), /review file is empty/);
+  assert.throws(() => readAgentReview('not json'), /valid JSON/);
+  assert.equal(readAgentReview('{"summary":"S","overall_risk":"extreme","issues":[],"edits":[]}').overall_risk, 'medium');
+  assert.match(agentBrief({ paragraphs: ['A', 'B'], filename: 'x.docx', reviewFile: 'r.json', contractPath: 'x.docx' }), /\[P1\] B/);
 });
 
 test('missing key gives a clear message', async () => {

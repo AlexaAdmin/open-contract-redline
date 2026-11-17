@@ -10,20 +10,34 @@ const DEMO_URL = new URL('../examples/demo-review.json', import.meta.url);
 export function demoReview() {
   return reviewContract({ buffer: fs.readFileSync(SAMPLE_URL), filename: 'sample-services-agreement.docx', demo: true });
 }
-import { reviewWithModel } from './providers.js';
+import { reviewWithModel, normalizeResult } from './providers.js';
 
-export async function reviewContract({ buffer, filename = 'contract.docx', ...opts }) {
+async function load(buffer, filename) {
   const ext = filename.toLowerCase().split('.').pop();
   let docx = buffer;
   if (ext === 'txt' || ext === 'md') docx = await textToDocx(buffer.toString('utf8'));
   else if (ext !== 'docx') throw new Error('Please upload a Word .docx file (or .txt / .md). For a PDF, save it as Word first.');
-
   const paragraphs = await readDocx(docx);
   if (!paragraphs.join('').trim()) throw new Error('No text found in this document. Is it a scanned image?');
+  return { docx, paragraphs };
+}
 
-  const result = opts.demo
-    ? { ...JSON.parse(fs.readFileSync(DEMO_URL, 'utf8')), provider: 'demo', model: 'prepared sample answer (no AI call)' }
-    : await reviewWithModel(paragraphs, opts);
+/** Agent mode, step 1: the contract as numbered paragraphs, for the brief an AI agent reads. */
+export async function contractParagraphs({ buffer, filename = 'contract.docx' }) {
+  return (await load(buffer, filename)).paragraphs;
+}
+
+/**
+ * opts.review: an answer already written by an AI agent (agent mode, no API key).
+ * opts.demo:   the prepared sample answer. Otherwise one API call to the chosen provider.
+ */
+export async function reviewContract({ buffer, filename = 'contract.docx', ...opts }) {
+  const { docx, paragraphs } = await load(buffer, filename);
+  const result = opts.review
+    ? { ...normalizeResult(opts.review), provider: 'agent mode', model: opts.agentName || 'your AI agent (no API key)' }
+    : opts.demo
+      ? { ...JSON.parse(fs.readFileSync(DEMO_URL, 'utf8')), provider: 'demo', model: 'prepared sample answer (no AI call)' }
+      : await reviewWithModel(paragraphs, opts);
   delete result._note;
   const { buffer: redline, applied, skipped } = await redlineDocx(docx, result.edits, { author: opts.author || 'AI Review' });
   const preview = await previewDocx(redline);   // read back from the finished file, so the screen matches Word

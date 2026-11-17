@@ -88,13 +88,15 @@ export async function reviewWithModel(paragraphs, opts = {}) {
     mistral: () => callMistral(cfg, system, user),
   })[cfg.provider];
   const text = await call(cfg, system, user);
-  const out = parseJson(text);
+  return { ...normalizeResult(parseJson(text)), provider: cfg.provider, model: cfg.model };
+}
+
+/** Tidy a review answer (from a model or from an AI agent in agent mode) into the shape the redline expects. */
+export function normalizeResult(out = {}) {
   return {
     summary: String(out.summary || ''),
     overall_risk: ['low', 'medium', 'high'].includes(out.overall_risk) ? out.overall_risk : 'medium',
     issues: Array.isArray(out.issues) ? out.issues : [],
     edits: Array.isArray(out.edits) ? out.edits : [],
-    provider: cfg.provider,
-    model: cfg.model,
   };
 }

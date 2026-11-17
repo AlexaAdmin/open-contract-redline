@@ -2,13 +2,14 @@
 
 **Free, open-source AI contract review that gives you a real Word redline.**
 
-Upload a contract. One AI model reads it, lists the issues by risk, and **shows you the redline right in your browser**: deletions struck through, insertions underlined, and a comment explaining every change. When you are happy, download your `.docx` with **real Word tracked changes and margin comments**, ready to send back to the other side.
+Give it a contract. One AI reads it, lists the issues by risk, and **shows you the redline right in your browser**: deletions struck through, insertions underlined, and a comment explaining every change. When you are happy, download your `.docx` with **real Word tracked changes and margin comments**, ready to send back to the other side.
 
 ![The redline in the browser](docs/redline-view.jpg)
 
-- Bring your own API key for **Claude, GPT, DeepSeek or Mistral**
-- One model per review, the one you choose. No hidden second model.
-- Runs on your own computer. Your contract goes straight to the AI provider you pick, and nowhere else.
+- **No API key needed with Claude Code or Codex:** your AI agent does the review itself (agent mode)
+- Or bring your own API key for **Claude, GPT, DeepSeek or Mistral**
+- One AI per review, the one you choose. No hidden second model.
+- Runs on your own computer. Your contract goes only to the AI you use, and nowhere else.
 - Review the redline on screen: switch between **Redline**, **Clean** (all changes accepted) and **Original**, jump from change to change, or show changes only
 - No API key yet? Press **Try the demo** to see a full review of the sample contract
 - Works as a local web page or from the command line
@@ -18,7 +19,17 @@ Upload a contract. One AI model reads it, lists the issues by risk, and **shows 
 
 ---
 
-## Quick start (5 minutes)
+## Quickest start: one prompt in Claude Code or Codex (no API key)
+
+Open **Claude Code** or **Codex** and paste:
+
+> Install the free contract redline tool from github.com/AlexaAdmin/open-contract-redline, then use agent mode to redline my contract "My Contract.docx" and open the redline in my browser.
+
+Your AI agent downloads the tool, does the review itself, and opens the redline in your browser, with the Word file saved next to your contract. It runs on the Claude or ChatGPT plan you already use for Claude Code or Codex, so you do not need an API key. No contract handy? Ask it to use the sample contract.
+
+How it works: the agent runs `--prepare`, which writes a brief with the review instructions and the contract; it reviews the contract and saves its answer as JSON; then `--from` turns that answer into the redline. The steps are in [AGENTS.md](AGENTS.md), which Claude Code and Codex read automatically.
+
+## Quick start with an API key (5 minutes)
 
 You need [Node.js 20 or later](https://nodejs.org) and an API key from one provider.
 
@@ -66,7 +77,9 @@ Use any other model your key can access with `--model <id>`, or set `ANTHROPIC_M
 | `--party "Supplier"` | Who you act for. The review protects this party. |
 | `--playbook positions.md` | Your firm's positions (liability caps, governing law, red lines). The model follows them where they apply. |
 | `--model <id>` | Use a specific model. |
-| `--out folder` | Where to save the two files. |
+| `--out folder` | Where to save the files. |
+| `--open` | Open the browser redline when it is ready. |
+| `--prepare` / `--from review.json` | Agent mode: write the brief for an AI agent, then build the redline from its answer. |
 
 The web page has the same options.
 
@@ -83,7 +96,7 @@ Supported files: `.docx`, `.txt`, `.md`. For a PDF, save it as Word first.
 ## Your data
 
 - Nothing is stored by this tool. The local web page listens on `127.0.0.1` only.
-- Your contract is sent to the AI provider you choose, under that provider's API terms. Check their data retention and training settings, and use an account your firm has approved for client documents.
+- Your contract is sent to the AI you use, under that provider's terms: the API provider you choose, or in agent mode the company behind your AI agent (Anthropic for Claude Code, OpenAI for Codex). Check their data retention and training settings, and use an account your firm has approved for client documents.
 - Keep your `.env` file private. It is listed in `.gitignore`.
 
 ## Make it yours with Claude Code or Codex

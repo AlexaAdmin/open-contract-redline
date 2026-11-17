@@ -4,5 +4,7 @@ test/out/
 *- redline.docx
 *- review.md
 *- redline.html
+*- agent-brief.md
+*- review.json
 !examples/*
 .DS_Store
